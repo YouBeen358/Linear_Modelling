@@ -1,0 +1,236 @@
+---
+title: 'OLS for Predicting Post Shares with Post Likes'
+author: "Lab Group 2"
+output: pdf_document
+date: "Friday, March 1 , 2024"
+---
+
+**Data set Import and Preparation:**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+Install useful package
+
+```{r, echo = FALSE, message=FALSE}
+library(rmarkdown)
+library(knitr)
+library(car)
+library(ggplot2)
+library(GGally)
+library(tinytex)
+library(readr)
+```
+
+Set up work dictionary
+
+```{r set-working-directory}
+setwd("~/Desktop/MA575")
+```
+
+Import the Data
+
+```{r read-data}
+mydata <- read.csv("~/Desktop/MA575/facebook_updated.csv")
+mydata
+```
+
+**Data Processing and Visualization**
+
+Original Data visualization
+
+Scatterplot between numbers of likes(X) and numbers of shares(Y)
+
+```{r}
+plot(mydata$like, mydata$share )
+```
+
+Scatterplot between totakl reach(X) and number of clicks(Y)
+
+```{r}
+plot(mydata$Lifetime.Post.Total.Reach, mydata$Lifetime.Post.Consumers)
+```
+
+Scatterplot between post hours(X) and total interactions(Y), where X is discontious
+
+```{r}
+plot(mydata$Post.Hour, mydata$Total.Interactions )
+```
+
+Scatterplot between post weedday(X) and total interaction(Y),, where X is discontious
+
+```{r}
+plot(mydata$Post.Weekday, mydata$Total.Interactions )
+```
+
+Scatterplot between number of likes(X) and total interaction(Y)
+
+```{r}
+plot(mydata$like, mydata$Total.Interactions )
+```
+
+Scatterplot between number of likes(X) and total interaction(Y)
+
+```{r}
+plot(mydata$Page.total.likes, mydata$Lifetime.Post.Consumers)
+scatterplot(mydata$Page.total.likes, mydata$Lifetime.Post.Consumers)
+```
+
+
+
+Note: Some may look chaos and discontinous. We can do the data cleaning later
+
+**Part one: Data cleaning (Johnny)**
+
+Model on cleaned data: Run, plot and summarize two models
+
+1: likes as a function of shares for all Paid posts 2: likes as a function of shares for all Unpaid posts
+
+We restrict the number of likes to be less than 1000, which happens to also clean our shared values in the same manner. That is, we would like to focus on the relationship between likes and shares for moderate number of likes and shares, as we believe the trend between likes and shares may be different for posts with a small number of likes (\<1000) than those with a large number of likes (\>1000). We choose 1000 likes as a reasonable cutoff since it allows us to focus in on the region of the scatter plot we believe will reveal a relationship. In addition, the cutoff of 1000 is a nice balance between not throwing away useful observations and cleaning the data.
+
+The cleaned model can tell us answers that
+
+How many shares a post receives will correspond to one like of the post?(which should be beta one) how many shares a post receives will correspond to Zero like of the post?(which should be beta zero)
+
+```{r}
+PAID_likes_v_shares_cleaned <- subset(mydata, mydata$like <= 1000 & mydata$Paid == 1)
+UNPAID_likes_v_shares_cleaned <- subset(mydata, mydata$like <= 1000 & mydata$Paid == 0)
+```
+
+Let's look at the filtered data set
+
+First, paid posts
+
+```{r}
+PAID_likes_v_shares_cleaned
+summary(PAID_likes_v_shares_cleaned)
+library(car)
+scatterplot(PAID_likes_v_shares_cleaned$like, PAID_likes_v_shares_cleaned$share)
+scatterplot(PAID_likes_v_shares_cleaned$like, PAID_likes_v_shares_cleaned$Total.Interactions)
+qqplot(PAID_likes_v_shares_cleaned$like, rnorm(10000),
+       xlab ="# of likes for paid post",
+       ylab ="theoretical quantiles")
+qqplot(PAID_likes_v_shares_cleaned$share, rnorm(10000),
+       xlab ="# of shares for paid post",
+       ylab ="theoretical quantiles")
+qqplot(PAID_likes_v_shares_cleaned$Lifetime.Post.Consumers, rnorm(10000),
+       xlab ="# of clicks for paid post",
+       ylab ="theoretical quantiles")
+```
+Summary for paid: 
+I am not sure about how to do ANOVA.
+Compared to Likes versus Shares, I think there's a stronger linear relationship between numbers of likes and total interaction.
+Concerns: Partially normally. Since QQplot shows that our variables are not strictly following the dianogal line. Also, most of them are unevenly distributed.
+
+Second, unpaid posts
+
+```{r}
+UNPAID_likes_v_shares_cleaned
+library(car)
+summary(UNPAID_likes_v_shares_cleaned)
+scatterplot(UNPAID_likes_v_shares_cleaned$like, UNPAID_likes_v_shares_cleaned$share)
+scatterplot(UNPAID_likes_v_shares_cleaned$like, UNPAID_likes_v_shares_cleaned$Total.Interactions)
+```
+
+PAID_cleaned_model_likeVshare \<- lm(PAID_likes_v_shares_cleaned$share ~ PAID_likes_v_shares_cleaned$like, data= PAID_likes_v_shares_cleaned) UNPAID_cleaned_model_likeVshare \<- lm(UNPAID_likes_v_shares_cleaned$share ~ UNPAID_likes_v_shares_cleaned$like, data= UNPAID_likes_v_shares_cleaned)
+
+# summary of each model
+
+summary(PAID_cleaned_model_likeVshare) summary(UNPAID_cleaned_model_likeVshare)
+
+# Plots of each model
+
+scatterplot(PAID_likes_v_shares_cleaned$share ~ PAID_likes_v_shares_cleaned$like) \# 'This is the overlay plot' plot(PAID_cleaned_model_likeVshare)
+
+scatterplot(UNPAID_likes_v_shares_cleaned$share ~ UNPAID_likes_v_shares_cleaned$like) plot(UNPAID_cleaned_model_likeVshare)
+
+# hat values for each model
+
+lev_cutoff \<- 4 / nrow(PAID_likes_v_shares_cleaned) \# Justification for getting rid of obs where h_ij \> 4/n PAID_hats \<- as.data.frame(hatvalues(PAID_cleaned_model_likeVshare)) UNPAID_hats \<- as.data.frame(hatvalues(UNPAID_cleaned_model_likeVshare)) \`\`\`
+
+#part two: Regression Analysis (Fanyu Wang)
+1: likes as a function of shares for all Paid posts
+```{r}
+PAID_cleaned_model_likeVshare <- lm(PAID_likes_v_shares_cleaned$share ~ PAID_likes_v_shares_cleaned$like, data= PAID_likes_v_shares_cleaned)
+summary(PAID_cleaned_model_likeVshare)
+```
+The p-value for this model is very close to zero, indicating that there may exist a positive 
+linear relationship between the likes and shares for all paid posts. The SLR model explains around 50 percent of data, while the coefficient estimate for predictor is around 0.09, indicating that as the likes increase by 1 unit, the shares increase by approximately 0.09.
+
+2: likes as a function of shares for all Unpaid posts
+```{r}
+UNPAID_cleaned_model_likeVshare <- lm(UNPAID_likes_v_shares_cleaned$share ~ UNPAID_likes_v_shares_cleaned$like, data= UNPAID_likes_v_shares_cleaned)
+summary(UNPAID_cleaned_model_likeVshare)
+```
+The p-value for our second model is very close to zero, suggesting that there may exist a positive linear relationship between the likes and shares for all unpaid posts. The model explains around 63 percent of data, which is larger than that of the model on all paids posts. However, it may be due to the larger sample size of Unpaid posts that result in a larger R-squared value in this model. The coefficient estimate for predictor is around 0.12, indicating that as the likes increase by 1 unit, the shares increase by approximately 0.12.
+
+##SIQI LI
+
+#plot residuals
+
+```{r}
+plot(PAID_cleaned_model_likeVshare)
+plot(UNPAID_cleaned_model_likeVshare)
+```
+
+#test normality (error term)
+
+```{r}
+residuals_PAID_cleaned_model_likeVshare <- resid(PAID_cleaned_model_likeVshare)
+hist(residuals_PAID_cleaned_model_likeVshare, breaks=30, main="Histogram of Residuals")
+
+
+residuals_UNPAID_cleaned_model_likeVshare <- resid(UNPAID_cleaned_model_likeVshare)
+hist(residuals_UNPAID_cleaned_model_likeVshare, breaks=30, main="Histogram of Residuals")
+
+
+```
+
+Our ordinary straight line regression model does not fit the data well, and we could see a clear pattern in our residuals. What is more, the square root of standardized residuals incease as fitted value increasing. From our model assumptions, we would expect to see no pattern with our residuals, so we should consider adjusting the model in some way. 
+
+#transform (log)
+
+```{r}
+PAID_likes_v_shares_cleaned$transformed_variable_share <- log(PAID_likes_v_shares_cleaned$share + 1)
+PAID_likes_v_shares_cleaned$transformed_variable_like <- log(PAID_likes_v_shares_cleaned$like + 1)
+
+log_PAID_cleaned_model_likeVshare <- lm(transformed_variable_share ~ transformed_variable_like, data = PAID_likes_v_shares_cleaned)
+summary(log_PAID_cleaned_model_likeVshare)
+```
+
+```{r}
+plot(log_PAID_cleaned_model_likeVshare)
+
+residuals_log_PAID_cleaned_model_likeVshare <- resid(log_PAID_cleaned_model_likeVshare)
+hist(residuals_log_PAID_cleaned_model_likeVshare, breaks=30, main="Histogram of Residuals")
+
+qqnorm(residuals_log_PAID_cleaned_model_likeVshare)
+qqline(residuals_log_PAID_cleaned_model_likeVshare, col = "red")
+
+shapiro.test(residuals_log_PAID_cleaned_model_likeVshare)
+```
+
+After log transformation, the new model is an inprovement one, there has lack of pattern in the square root of standardized residual plot and Standardized Residuals suggests our assumption is improved upon.
+
+
+```{r}
+UNPAID_likes_v_shares_cleaned$transformed_variable_share <- log(UNPAID_likes_v_shares_cleaned$share + 1)
+UNPAID_likes_v_shares_cleaned$transformed_variable_like <- log(UNPAID_likes_v_shares_cleaned$like + 1)
+
+log_UNPAID_cleaned_model_likeVshare <- lm(transformed_variable_share ~ transformed_variable_like, data = UNPAID_likes_v_shares_cleaned)
+summary(log_UNPAID_cleaned_model_likeVshare)
+```
+
+```{r}
+plot(log_UNPAID_cleaned_model_likeVshare)
+
+residuals_log_UNPAID_cleaned_model_likeVshare <- resid(log_UNPAID_cleaned_model_likeVshare)
+hist(residuals_log_UNPAID_cleaned_model_likeVshare, breaks=30, main="Histogram of Residuals")
+
+qqnorm(residuals_log_UNPAID_cleaned_model_likeVshare)
+qqline(residuals_log_UNPAID_cleaned_model_likeVshare, col = "red")
+
+shapiro.test(residuals_log_UNPAID_cleaned_model_likeVshare)
+```
